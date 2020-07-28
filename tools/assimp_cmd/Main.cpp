@@ -3,7 +3,8 @@
 Open Asset Import Library (assimp)
 ---------------------------------------------------------------------------
 
-Copyright (c) 2006-2017, assimp team
+Copyright (c) 2006-2020, assimp team
+
 
 
 All rights reserved.
@@ -84,7 +85,7 @@ int main (int argc, char* argv[])
 {
 	if (argc <= 1)	{
 		printf("assimp: No command specified. Use \'assimp help\' for a detailed command list\n");
-		return 0;
+		return AssimpCmdError::Success;
 	}
 
 	// assimp version
@@ -101,7 +102,7 @@ int main (int argc, char* argv[])
 			(flags & ASSIMP_CFLAGS_STLPORT ?		"-stlport " : ""),
 			aiGetVersionRevision());
 
-		return 0;
+		return AssimpCmdError::Success;
 	}
 
 	// assimp help
@@ -109,7 +110,7 @@ int main (int argc, char* argv[])
 	// because people could try them intuitively)
 	if (!strcmp(argv[1], "help") || !strcmp(argv[1], "--help") || !strcmp(argv[1], "-h")) {
 		printf("%s",AICMD_MSG_HELP);
-		return 0;
+		return AssimpCmdError::Success;
 	}
 
 	// assimp cmpdump
@@ -136,7 +137,7 @@ int main (int argc, char* argv[])
 		imp.GetExtensionList(s);
 
 		printf("%s\n",s.data);
-		return 0;
+		return AssimpCmdError::Success;
 	}
 
 #ifndef ASSIMP_BUILD_NO_EXPORT
@@ -154,7 +155,7 @@ int main (int argc, char* argv[])
 		}
 
 		printf("%s\n",s.data);
-		return 0;
+		return AssimpCmdError::Success;
 	}
 
 
@@ -165,19 +166,19 @@ int main (int argc, char* argv[])
 
 		if (argc<3) {
 			printf("Expected file format id\n");
-			return -11;
+			return AssimpCmdError::NoFileFormatSpecified;
 		}
 
 		for(size_t i = 0, end = exp.GetExportFormatCount(); i < end; ++i) {
 			const aiExportFormatDesc* const e = exp.GetExportFormatDescription(i);
 			if (!strcmp(e->id,argv[2])) {
 				printf("%s\n%s\n%s\n",e->id,e->fileExtension,e->description);
-				return 0;
+				return AssimpCmdError::Success;
 			}
 		}
 		
 		printf("Unknown file format id: \'%s\'\n",argv[2]);
-		return -12;
+		return AssimpCmdError::UnknownFileFormat;
 	}
 
 	// assimp export
@@ -193,11 +194,11 @@ int main (int argc, char* argv[])
 	if (! strcmp(argv[1], "knowext")) {
 		if (argc<3) {
 			printf("Expected file extension");
-			return -10;
+			return AssimpCmdError::NoFileExtensionSpecified;
 		}
 		const bool b = imp.IsExtensionSupported(argv[2]);
 		printf("File extension \'%s\'  is %sknown\n",argv[2],(b?"":"not "));
-		return b?0:-1;
+		return b? AssimpCmdError::Success : AssimpCmdError::UnknownFileExtension;
 	}
 
 	// assimp info
@@ -227,7 +228,7 @@ int main (int argc, char* argv[])
 	}
 
 	printf("Unrecognized command. Use \'assimp help\' for a detailed command list\n");
-	return 1;
+	return AssimpCmdError::UnrecognizedCommand;
 }
 
 
@@ -259,7 +260,6 @@ void PrintHorBar()
 {
 	printf("-----------------------------------------------------------------\n");
 }
-
 
 // ------------------------------------------------------------------------------
 // Import a specific file
@@ -333,7 +333,8 @@ bool ExportModel(const aiScene* pOut,
 		PrintHorBar();
 	}
 	if (res != AI_SUCCESS) {
-		printf("ERROR: Failed to write file\n");	
+		printf("Failed to write file\n");
+		printf("ERROR: %s\n", globalExporter->GetErrorString());
 		return false;
 	}
 
@@ -383,110 +384,116 @@ int ProcessStandardArguments(
 	// -om     --optimize-meshes
 	// -db     --debone
 	// -sbc    --split-by-bone-count
+	// -gs	   --global-scale
 	//
 	// -c<file> --config-file=<file>
 
 	for (unsigned int i = 0; i < num;++i) 
 	{
-		if (! strcmp(params[i], "-ptv") || ! strcmp(params[i], "--pretransform-vertices")) {
+        const char *param = params[ i ];
+        printf( "param = %s\n", param );
+		if (! strcmp( param, "-ptv") || ! strcmp( param, "--pretransform-vertices")) {
 			fill.ppFlags |= aiProcess_PreTransformVertices;
 		}
-		else if (! strcmp(params[i], "-gsn") || ! strcmp(params[i], "--gen-smooth-normals")) {
+		else if (! strcmp( param, "-gsn") || ! strcmp( param, "--gen-smooth-normals")) {
 			fill.ppFlags |= aiProcess_GenSmoothNormals;
 		}
-		else if (! strcmp(params[i], "-gn") || ! strcmp(params[i], "--gen-normals")) {
+    else if (! strcmp( param, "-dn") || ! strcmp( param, "--drop-normals")) {
+			fill.ppFlags |= aiProcess_DropNormals;
+		}
+		else if (! strcmp( param, "-gn") || ! strcmp( param, "--gen-normals")) {
 			fill.ppFlags |= aiProcess_GenNormals;
 		}
-		else if (! strcmp(params[i], "-jiv") || ! strcmp(params[i], "--join-identical-vertices")) {
+		else if (! strcmp( param, "-jiv") || ! strcmp( param, "--join-identical-vertices")) {
 			fill.ppFlags |= aiProcess_JoinIdenticalVertices;
 		}
-		else if (! strcmp(params[i], "-rrm") || ! strcmp(params[i], "--remove-redundant-materials")) {
+		else if (! strcmp( param, "-rrm") || ! strcmp( param, "--remove-redundant-materials")) {
 			fill.ppFlags |= aiProcess_RemoveRedundantMaterials;
 		}
-		else if (! strcmp(params[i], "-fd") || ! strcmp(params[i], "--find-degenerates")) {
+		else if (! strcmp( param, "-fd") || ! strcmp( param, "--find-degenerates")) {
 			fill.ppFlags |= aiProcess_FindDegenerates;
 		}
-		else if (! strcmp(params[i], "-slm") || ! strcmp(params[i], "--split-large-meshes")) {
+		else if (! strcmp( param, "-slm") || ! strcmp( param, "--split-large-meshes")) {
 			fill.ppFlags |= aiProcess_SplitLargeMeshes;
 		}
-		else if (! strcmp(params[i], "-lbw") || ! strcmp(params[i], "--limit-bone-weights")) {
+		else if (! strcmp( param, "-lbw") || ! strcmp( param, "--limit-bone-weights")) {
 			fill.ppFlags |= aiProcess_LimitBoneWeights;
 		}
-		else if (! strcmp(params[i], "-vds") || ! strcmp(params[i], "--validate-data-structure")) {
+		else if (! strcmp( param, "-vds") || ! strcmp( param, "--validate-data-structure")) {
 			fill.ppFlags |= aiProcess_ValidateDataStructure;
 		}
-		else if (! strcmp(params[i], "-icl") || ! strcmp(params[i], "--improve-cache-locality")) {
+		else if (! strcmp( param, "-icl") || ! strcmp( param, "--improve-cache-locality")) {
 			fill.ppFlags |= aiProcess_ImproveCacheLocality;
 		}
-		else if (! strcmp(params[i], "-sbpt") || ! strcmp(params[i], "--sort-by-ptype")) {
+		else if (! strcmp( param, "-sbpt") || ! strcmp( param, "--sort-by-ptype")) {
 			fill.ppFlags |= aiProcess_SortByPType;
 		}
-		else if (! strcmp(params[i], "-lh") || ! strcmp(params[i], "--left-handed")) {
+		else if (! strcmp( param, "-lh") || ! strcmp( param, "--left-handed")) {
 			fill.ppFlags |= aiProcess_ConvertToLeftHanded;
 		}
-		else if (! strcmp(params[i], "-fuv") || ! strcmp(params[i], "--flip-uv")) {
+		else if (! strcmp( param, "-fuv") || ! strcmp( param, "--flip-uv")) {
 			fill.ppFlags |= aiProcess_FlipUVs;
 		}
-		else if (! strcmp(params[i], "-fwo") || ! strcmp(params[i], "--flip-winding-order")) {
+		else if (! strcmp( param, "-fwo") || ! strcmp( param, "--flip-winding-order")) {
 			fill.ppFlags |= aiProcess_FlipWindingOrder;
 		}
-		else if (! strcmp(params[i], "-tuv") || ! strcmp(params[i], "--transform-uv-coords")) {
+		else if (! strcmp( param, "-tuv") || ! strcmp( param, "--transform-uv-coords")) {
 			fill.ppFlags |= aiProcess_TransformUVCoords;
 		}
-		else if (! strcmp(params[i], "-guv") || ! strcmp(params[i], "--gen-uvcoords")) {
+		else if (! strcmp( param, "-guv") || ! strcmp( param, "--gen-uvcoords")) {
 			fill.ppFlags |= aiProcess_GenUVCoords;
 		}
-		else if (! strcmp(params[i], "-fid") || ! strcmp(params[i], "--find-invalid-data")) {
+		else if (! strcmp( param, "-fid") || ! strcmp( param, "--find-invalid-data")) {
 			fill.ppFlags |= aiProcess_FindInvalidData;
 		}
-		else if (! strcmp(params[i], "-fixn") || ! strcmp(params[i], "--fix-normals")) {
+		else if (! strcmp( param, "-fixn") || ! strcmp( param, "--fix-normals")) {
 			fill.ppFlags |= aiProcess_FixInfacingNormals;
 		}
-		else if (! strcmp(params[i], "-tri") || ! strcmp(params[i], "--triangulate")) {
+		else if (! strcmp( param, "-tri") || ! strcmp( param, "--triangulate")) {
 			fill.ppFlags |= aiProcess_Triangulate;
 		}
-		else if (! strcmp(params[i], "-cts") || ! strcmp(params[i], "--calc-tangent-space")) {
+		else if (! strcmp( param, "-cts") || ! strcmp( param, "--calc-tangent-space")) {
 			fill.ppFlags |= aiProcess_CalcTangentSpace;
 		}
-		else if (! strcmp(params[i], "-fi") || ! strcmp(params[i], "--find-instances")) {
+		else if (! strcmp( param, "-fi") || ! strcmp( param, "--find-instances")) {
 			fill.ppFlags |= aiProcess_FindInstances;
 		}
-		else if (! strcmp(params[i], "-og") || ! strcmp(params[i], "--optimize-graph")) {
+		else if (! strcmp( param, "-og") || ! strcmp( param, "--optimize-graph")) {
 			fill.ppFlags |= aiProcess_OptimizeGraph;
 		}
-		else if (! strcmp(params[i], "-om") || ! strcmp(params[i], "--optimize-meshes")) {
+		else if (! strcmp( param, "-om") || ! strcmp( param, "--optimize-meshes")) {
 			fill.ppFlags |= aiProcess_OptimizeMeshes;
 		}
-		else if (! strcmp(params[i], "-db") || ! strcmp(params[i], "--debone")) {
+		else if (! strcmp( param, "-db") || ! strcmp( param, "--debone")) {
 			fill.ppFlags |= aiProcess_Debone;
 		}
-		else if (! strcmp(params[i], "-sbc") || ! strcmp(params[i], "--split-by-bone-count")) {
+		else if (! strcmp( param, "-sbc") || ! strcmp( param, "--split-by-bone-count")) {
 			fill.ppFlags |= aiProcess_SplitByBoneCount;
 		}
-
-
-		else if (! strncmp(params[i], "-c",2) || ! strncmp(params[i], "--config=",9)) {
-			
+		else if (!strcmp(param, "-embtex") || ! strcmp(param, "--embed-textures")) {
+			fill.ppFlags |= aiProcess_EmbedTextures;
+		}
+		else if (!strcmp(param, "-gs") || ! strcmp(param, "--global-scale")) {
+			fill.ppFlags |= aiProcess_GlobalScale;
+		}
+		else if (! strncmp( param, "-c",2) || ! strncmp( param, "--config=",9)) {
 			const unsigned int ofs = (params[i][1] == '-' ? 9 : 2);
 
 			// use default configurations
-			if (! strncmp(params[i]+ofs,"full",4)) {
-				fill.ppFlags |= aiProcessPreset_TargetRealtime_MaxQuality;
-			}
-			else if (! strncmp(params[i]+ofs,"default",7)) {
+            if (!strncmp( param + ofs, "full", 4 )) {
+                fill.ppFlags |= aiProcessPreset_TargetRealtime_MaxQuality;
+            } else if (!strncmp( param + ofs, "default", 7 )) {
 				fill.ppFlags |= aiProcessPreset_TargetRealtime_Quality;
-			}
-			else if (! strncmp(params[i]+ofs,"fast",4)) {
+			} else if (! strncmp( param +ofs,"fast",4)) {
 				fill.ppFlags |= aiProcessPreset_TargetRealtime_Fast;
 			}
-		}
-		else if (! strcmp(params[i], "-l") || ! strcmp(params[i], "--show-log")) { 
+		} else if (! strcmp( param, "-l") || ! strcmp( param, "--show-log")) {
 			fill.showLog = true;
 		}
-		else if (! strcmp(params[i], "-v") || ! strcmp(params[i], "--verbose")) { 
+		else if (! strcmp( param, "-v") || ! strcmp( param, "--verbose")) {
 			fill.verbose = true;
 		}
-		else if (! strncmp(params[i], "--log-out=",10) || ! strncmp(params[i], "-lo",3)) { 
+		else if (! strncmp( param, "--log-out=",10) || ! strncmp( param, "-lo",3)) {
 			fill.logFile = std::string(params[i]+(params[i][1] == '-' ? 10 : 3));
 			if (!fill.logFile.length()) {
 				fill.logFile = "assimp-log.txt";
@@ -498,7 +505,7 @@ int ProcessStandardArguments(
 		fill.log = true;
 	}
 
-	return 0;
+	return AssimpCmdError::Success;
 }
 
 // ------------------------------------------------------------------------------
@@ -510,5 +517,5 @@ int Assimp_TestBatchLoad (
 		globalImporter->ReadFile(params[i],aiProcessPreset_TargetRealtime_MaxQuality);
 		// we're totally silent. scene destructs automatically.
 	}
-	return 0;
+	return AssimpCmdError::Success;
 }

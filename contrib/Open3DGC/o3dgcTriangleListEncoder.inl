@@ -125,7 +125,7 @@ namespace o3dgc
         }
         return true;
     }
-    inline bool IsCase6(long degree, long numIndices, const long * const ops, const long * const indices)
+    inline bool IsCase6(long degree, long numIndices, const long * const ops, const long * const /*indices*/)
     {
         // ops: 0000000 indices: 
         if (numIndices!= 0) 
@@ -353,9 +353,9 @@ namespace o3dgc
                 m_ctfans.PushTriangleIndex(pred);
                 prev = m_tmap[t] + 1;
             }
-            for (long t = 0; t < numTriangles; ++t)
+            for (long tt = 0; tt < numTriangles; ++tt)
             {
-                m_invTMap[m_tmap[t]] = t;
+                m_invTMap[m_tmap[tt]] = tt;
             }
         }
         m_ctfans.Save(bstream, encodeTrianglesOrder, m_streamType);

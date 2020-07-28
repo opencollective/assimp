@@ -2,25 +2,31 @@ FIND_PACKAGE(OpenGL)
 FIND_PACKAGE(GLUT)
 IF ( MSVC )
   SET(M_LIB)
-ELSE ( MSVC )
+ELSE ()
   find_library(M_LIB m)
-ENDIF ( MSVC )
+ENDIF ()
 
 IF ( NOT GLUT_FOUND )
   IF ( MSVC )
     SET ( GLUT_FOUND 1 )
-    SET ( GLUT_INCLUDE_DIR ${Assimp_SOURCE_DIR}/samples/glut/ )
-    SET ( GLUT_LIBRARIES ${Assimp_SOURCE_DIR}/samples/glut/glut32.lib )
-  ELSE ( MSVC )
+    SET ( GLUT_INCLUDE_DIR ${Assimp_SOURCE_DIR}/samples/freeglut/ )
+    SET ( GLUT_LIBRARIES ${Assimp_SOURCE_DIR}/samples/freeglut/lib/freeglut.lib )
+  ELSE ()
     MESSAGE( WARNING "Please install glut." )
-  ENDIF ( MSVC )
-ENDIF ( NOT GLUT_FOUND )
+  ENDIF ()
+ENDIF ()
+
+if ( MSVC )
+  ADD_DEFINITIONS( -D_SCL_SECURE_NO_WARNINGS )
+  ADD_DEFINITIONS( -D_CRT_SECURE_NO_WARNINGS )
+endif ()
 
 INCLUDE_DIRECTORIES(
   ${Assimp_SOURCE_DIR}/include
   ${Assimp_SOURCE_DIR}/code
   ${OPENGL_INCLUDE_DIR}
   ${GLUT_INCLUDE_DIR}
+  ${Assimp_SOURCE_DIR}/samples/freeglut/include
 )
 
 LINK_DIRECTORIES(

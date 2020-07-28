@@ -8,8 +8,7 @@
 #include "irrXML.h"
 #include "irrString.h"
 #include "irrArray.h"
-
-using namespace Assimp;
+#include "fast_atof.h"
 
 #ifdef _DEBUG
 #define IRR_DEBUGPRINT(x) printf((x));
@@ -29,14 +28,23 @@ template<class char_type, class superclass>
 class CXMLReaderImpl : public IIrrXMLReader<char_type, superclass>
 {
 public:
-
 	//! Constructor
-	CXMLReaderImpl(IFileReadCallBack* callback, bool deleteCallBack = true)
-		: TextData(0), P(0), TextBegin(0), TextSize(0), CurrentNodeType(EXN_NONE),
-		SourceFormat(ETF_ASCII), TargetFormat(ETF_ASCII)
-	{
-		if (!callback)
+	CXMLReaderImpl(IFileReadCallBack* callback, bool deleteCallBack = true) 
+	: TextData(0)
+	, P(0)
+	, TextBegin(0)
+	, TextSize(0)
+	, CurrentNodeType(EXN_NONE)
+	, SourceFormat(ETF_ASCII)
+	, TargetFormat(ETF_ASCII)
+	, NodeName ()
+	, EmptyString()
+	, IsEmptyElement(false)
+	, SpecialCharacters()
+	, Attributes() {
+		if (!callback) {
 			return;
+		}
 
 		storeTargetFormat();
 
@@ -160,7 +168,7 @@ public:
 			return 0;
 
 		core::stringc c = attr->Value.c_str();
-		return fast_atof(c.c_str());
+		return core::fast_atof(c.c_str());
 	}
 
 
@@ -172,7 +180,7 @@ public:
 			return 0;
 
 		core::stringc c = attrvalue;
-		return fast_atof(c.c_str());
+		return core::fast_atof(c.c_str());
 	}
 
 
@@ -215,7 +223,7 @@ private:
 	{
 		char_type* start = P;
 
-		// move forward until '<' found
+		// more forward until '<' found
 		while(*P != L'<' && *P)
 			++P;
 
@@ -424,10 +432,6 @@ private:
 
 		while(*P != L'>')
 			++P;
-
-    // remove trailing whitespace, if any
-    while( isspace( P[-1]))
-      --P;
 
 		NodeName = core::string<char_type>(pBeginClose, (int)(P - pBeginClose));
 		++P;
@@ -663,15 +667,8 @@ private:
 
 			TextData = new char_type[sizeWithoutHeader];
 
-			// MSVC debugger complains here about loss of data ...
-
-
-			// FIXME - gcc complains about 'shift width larger than width of type'
-			// for T == unsigned long. Avoid it by messing around volatile ..
-			volatile unsigned int c = 3;
-			const src_char_type cc = (src_char_type)((((uint64_t)1u << (sizeof( char_type)<<c)) - 1));
 			for (int i=0; i<sizeWithoutHeader; ++i)
-				TextData[i] = char_type( source[i] & cc); 
+				TextData[i] = (char_type)source[i];
 
 			TextBegin = TextData;
 			TextSize = sizeWithoutHeader;
